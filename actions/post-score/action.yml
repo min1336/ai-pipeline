@@ -1,0 +1,59 @@
+name: Post Score Comment
+description: PR 또는 이슈에 점수 댓글을 게시 (sticky — 이전 댓글을 덮어씀)
+
+inputs:
+  target:
+    description: 'issue 또는 pr'
+    required: true
+  number:
+    description: '이슈/PR 번호'
+    required: true
+  body:
+    description: '댓글 본문'
+    required: true
+  marker:
+    description: '중복 방지 마커 (기본: ai-pipeline-score)'
+    required: false
+    default: 'ai-pipeline-score'
+
+runs:
+  using: composite
+  steps:
+    - name: 기존 점수 댓글 찾기
+      id: find
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        MARKER="<!-- ${{ inputs.marker }} -->"
+
+        if [ "${{ inputs.target }}" = "pr" ]; then
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${{ inputs.number }}/comments \
+            --jq "[.[] | select(.body | contains(\"$MARKER\"))] | last | .id // empty")
+        else
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${{ inputs.number }}/comments \
+            --jq "[.[] | select(.body | contains(\"$MARKER\"))] | last | .id // empty")
+        fi
+
+        echo "comment-id=${COMMENT_ID}" >> "$GITHUB_OUTPUT"
+
+    - name: 댓글 게시 또는 업데이트
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        MARKER="<!-- ${{ inputs.marker }} -->"
+        BODY="${{ inputs.body }}
+
+        ${MARKER}"
+
+        COMMENT_ID="${{ steps.find.outputs.comment-id }}"
+
+        if [ -n "$COMMENT_ID" ]; then
+          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+            -X PATCH -f body="$BODY"
+          echo "✅ 기존 댓글 업데이트: #$COMMENT_ID"
+        else
+          gh issue comment ${{ inputs.number }} --body "$BODY"
+          echo "✅ 새 댓글 게시"
+        fi

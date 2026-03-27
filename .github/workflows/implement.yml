@@ -1,0 +1,34 @@
+name: Auto Implement
+
+on:
+  workflow_call:
+    inputs:
+      max-turns:
+        type: number
+        default: 50
+    secrets:
+      CLAUDE_OAUTH_TOKEN:
+        required: true
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: min1336/ai-pipeline/actions/load-skills@main
+      - uses: min1336/ai-pipeline/actions/parse-pipeline@main
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+          track_progress: true
+          prompt: |
+            /implement ${{ github.event.issue.number }}
+          claude_args: |
+            --max-turns ${{ inputs.max-turns }}
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm:*),Bash(npx:*),Bash(pip:*),Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(./scripts/edit-issue-labels.sh:*)"
