@@ -1,0 +1,33 @@
+name: Load AI Pipeline Skills
+description: 중앙 레포의 스킬과 스크립트를 프로젝트 레포에 로드
+
+runs:
+  using: composite
+  steps:
+    - name: 중앙 레포 스킬 checkout
+      uses: actions/checkout@v4
+      with:
+        repository: min1336/ai-pipeline
+        path: .ai-pipeline
+        sparse-checkout: |
+          skills
+          scripts
+
+    - name: 스킬을 .claude/skills/에 복사
+      shell: bash
+      run: |
+        mkdir -p .claude/skills
+        cp -r .ai-pipeline/skills/* .claude/skills/
+        echo "✅ 스킬 로드 완료: $(ls .claude/skills/ | wc -l)개"
+
+    - name: 스크립트 복사
+      shell: bash
+      run: |
+        mkdir -p scripts
+        cp -r .ai-pipeline/scripts/* scripts/ 2>/dev/null || true
+        chmod +x scripts/*.sh 2>/dev/null || true
+        echo "✅ 스크립트 로드 완료"
+
+    - name: 임시 디렉토리 정리
+      shell: bash
+      run: rm -rf .ai-pipeline

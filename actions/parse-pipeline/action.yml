@@ -1,0 +1,72 @@
+name: Parse Pipeline Config
+description: .github/pipeline.yml을 읽어서 GitHub Actions outputs으로 내보냄
+
+outputs:
+  project-name:
+    description: 프로젝트 이름
+    value: ${{ steps.parse.outputs.project-name }}
+  language:
+    description: 프로젝트 언어
+    value: ${{ steps.parse.outputs.language }}
+  test-command:
+    description: 테스트 명령어
+    value: ${{ steps.parse.outputs.test-command }}
+  lint-command:
+    description: 린트 명령어
+    value: ${{ steps.parse.outputs.lint-command }}
+  review-roles:
+    description: 리뷰 역할 목록 (쉼표 구분)
+    value: ${{ steps.parse.outputs.review-roles }}
+  issue-threshold:
+    description: 이슈 점수 임계값
+    value: ${{ steps.parse.outputs.issue-threshold }}
+  review-threshold:
+    description: 리뷰 점수 임계값
+    value: ${{ steps.parse.outputs.review-threshold }}
+  config-exists:
+    description: pipeline.yml 존재 여부
+    value: ${{ steps.parse.outputs.config-exists }}
+
+runs:
+  using: composite
+  steps:
+    - name: pipeline.yml 파싱
+      id: parse
+      shell: bash
+      run: |
+        CONFIG=".github/pipeline.yml"
+
+        if [ ! -f "$CONFIG" ]; then
+          echo "⚠️ $CONFIG 없음 — 기본값 사용"
+          echo "config-exists=false" >> "$GITHUB_OUTPUT"
+          echo "project-name=unknown" >> "$GITHUB_OUTPUT"
+          echo "language=typescript" >> "$GITHUB_OUTPUT"
+          echo "test-command=npm test" >> "$GITHUB_OUTPUT"
+          echo "lint-command=npm run lint" >> "$GITHUB_OUTPUT"
+          echo "review-roles=security,qa,reviewer" >> "$GITHUB_OUTPUT"
+          echo "issue-threshold=8" >> "$GITHUB_OUTPUT"
+          echo "review-threshold=70" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "config-exists=true" >> "$GITHUB_OUTPUT"
+
+        # yq가 없으면 설치
+        if ! command -v yq &> /dev/null; then
+          wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+        fi
+
+        echo "project-name=$(yq '.project.name // "unknown"' "$CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "language=$(yq '.project.language // "typescript"' "$CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "test-command=$(yq '.build.test // "npm test"' "$CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "lint-command=$(yq '.build.lint // "npm run lint"' "$CONFIG")" >> "$GITHUB_OUTPUT"
+
+        # 리뷰 역할을 쉼표 구분 문자열로
+        ROLES=$(yq '.review.roles[]' "$CONFIG" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+        echo "review-roles=${ROLES:-security,qa,reviewer}" >> "$GITHUB_OUTPUT"
+
+        echo "issue-threshold=$(yq '.scoring.issue.threshold // 8' "$CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "review-threshold=$(yq '.scoring.review.threshold // 70' "$CONFIG")" >> "$GITHUB_OUTPUT"
+
+        echo "✅ pipeline.yml 파싱 완료"

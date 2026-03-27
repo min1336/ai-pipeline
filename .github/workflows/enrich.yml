@@ -1,0 +1,41 @@
+name: Issue Enrich
+
+on:
+  workflow_call:
+    inputs:
+      max-turns:
+        type: number
+        default: 15
+        description: Claude 최대 대화 턴 수
+    secrets:
+      CLAUDE_OAUTH_TOKEN:
+        required: true
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - name: 프로젝트 레포 checkout
+        uses: actions/checkout@v4
+
+      - name: 스킬 로드
+        uses: min1336/ai-pipeline/actions/load-skills@main
+
+      - name: pipeline.yml 파싱
+        id: config
+        uses: min1336/ai-pipeline/actions/parse-pipeline@main
+
+      - name: 이슈 구체화 실행
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+          track_progress: true
+          prompt: |
+            /enrich-issue ${{ github.event.issue.number }}
+          claude_args: |
+            --max-turns ${{ inputs.max-turns }}
+            --allowedTools "Read,Glob,Grep,Bash(gh issue:*),Bash(gh search:*),Bash(./scripts/edit-issue-labels.sh:*)"
