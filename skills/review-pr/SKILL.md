@@ -81,7 +81,7 @@ pipeline.yml의 `scoring.review.weights`에 따라 점수 산출:
 
 {상세 피드백}
 
-<!-- PIPELINE:{"stage":"reviewed","score":{total},"verdict":"{verdict}"} -->
+<!-- PIPELINE:{"stage":"reviewed","score":0,"verdict":"approve"} --> ← 실제 점수/판정으로 교체
 ```
 
 ### 판정 기준

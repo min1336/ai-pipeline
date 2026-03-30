@@ -60,7 +60,7 @@ gh issue view $ARGUMENTS --json title,body,labels,author
 ### 영향 범위
 {scope}
 
-<!-- PIPELINE:{"stage":"enriched","score":{score}} -->
+<!-- PIPELINE:{"stage":"enriched","score":0} --> ← score를 실제 점수로 교체
 ```
 
 라벨 추가:
@@ -81,7 +81,7 @@ gh issue view $ARGUMENTS --json title,body,labels,author
 
 {questions}
 
-<!-- PIPELINE:{"stage":"enriching","score":{score},"attempts":1} -->
+<!-- PIPELINE:{"stage":"enriching","score":0,"attempts":1} --> ← score를 실제 점수로 교체
 ```
 
 라벨 추가:
