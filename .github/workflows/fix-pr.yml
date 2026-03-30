@@ -54,7 +54,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           track_progress: true
-          direct_prompt: |
+          prompt: |
             ## 프로젝트 설정
             - 언어: ${{ steps.config.outputs.language }}
             - 테스트: `${{ steps.config.outputs.test-command }}`
