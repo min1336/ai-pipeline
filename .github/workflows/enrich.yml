@@ -29,12 +29,28 @@ jobs:
         id: config
         uses: min1336/ai-pipeline/actions/parse-pipeline@main
 
+      - name: 프로젝트 컨텍스트 수집
+        id: ctx
+        uses: min1336/ai-pipeline/actions/gather-context@main
+        with:
+          scope: issue
+          number: ${{ github.event.issue.number }}
+
       - name: 이슈 구체화 실행
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           track_progress: true
-          prompt: |
+          direct_prompt: |
+            ## 프로젝트 설정
+            - 이름: ${{ steps.config.outputs.project-name }}
+            - 언어: ${{ steps.config.outputs.language }}
+            - 이슈 품질 임계값: ${{ steps.config.outputs.issue-threshold }}/10
+
+            ## 프로젝트 컨텍스트
+            ${{ steps.ctx.outputs.domain-context }}
+            ${{ steps.ctx.outputs.project-context }}
+            ---
             /enrich-issue ${{ github.event.issue.number }}
           claude_args: |
             --max-turns ${{ inputs.max-turns }}

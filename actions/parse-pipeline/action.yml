@@ -8,12 +8,21 @@ outputs:
   language:
     description: 프로젝트 언어
     value: ${{ steps.parse.outputs.language }}
+  install-command:
+    description: 설치 명령어
+    value: ${{ steps.parse.outputs.install-command }}
   test-command:
     description: 테스트 명령어
     value: ${{ steps.parse.outputs.test-command }}
   lint-command:
     description: 린트 명령어
     value: ${{ steps.parse.outputs.lint-command }}
+  type-check-command:
+    description: 타입 체크 명령어
+    value: ${{ steps.parse.outputs.type-check-command }}
+  build-command:
+    description: 빌드 명령어
+    value: ${{ steps.parse.outputs.build-command }}
   review-roles:
     description: 리뷰 역할 목록 (쉼표 구분)
     value: ${{ steps.parse.outputs.review-roles }}
@@ -23,6 +32,9 @@ outputs:
   review-threshold:
     description: 리뷰 점수 임계값
     value: ${{ steps.parse.outputs.review-threshold }}
+  require-approval:
+    description: 구현 전 승인 필요 여부
+    value: ${{ steps.parse.outputs.require-approval }}
   config-exists:
     description: pipeline.yml 존재 여부
     value: ${{ steps.parse.outputs.config-exists }}
@@ -37,15 +49,19 @@ runs:
         CONFIG=".github/pipeline.yml"
 
         if [ ! -f "$CONFIG" ]; then
-          echo "⚠️ $CONFIG 없음 — 기본값 사용"
+          echo "::notice::$CONFIG 없음 — 기본값 사용"
           echo "config-exists=false" >> "$GITHUB_OUTPUT"
           echo "project-name=unknown" >> "$GITHUB_OUTPUT"
           echo "language=typescript" >> "$GITHUB_OUTPUT"
+          echo "install-command=npm install" >> "$GITHUB_OUTPUT"
           echo "test-command=npm test" >> "$GITHUB_OUTPUT"
           echo "lint-command=npm run lint" >> "$GITHUB_OUTPUT"
+          echo "type-check-command=" >> "$GITHUB_OUTPUT"
+          echo "build-command=" >> "$GITHUB_OUTPUT"
           echo "review-roles=security,qa,reviewer" >> "$GITHUB_OUTPUT"
           echo "issue-threshold=8" >> "$GITHUB_OUTPUT"
           echo "review-threshold=70" >> "$GITHUB_OUTPUT"
+          echo "require-approval=true" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
@@ -59,8 +75,11 @@ runs:
 
         echo "project-name=$(yq '.project.name // "unknown"' "$CONFIG")" >> "$GITHUB_OUTPUT"
         echo "language=$(yq '.project.language // "typescript"' "$CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "install-command=$(yq '.build.install // "npm install"' "$CONFIG")" >> "$GITHUB_OUTPUT"
         echo "test-command=$(yq '.build.test // "npm test"' "$CONFIG")" >> "$GITHUB_OUTPUT"
         echo "lint-command=$(yq '.build.lint // "npm run lint"' "$CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "type-check-command=$(yq '.build.type-check // ""' "$CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "build-command=$(yq '.build.build // ""' "$CONFIG")" >> "$GITHUB_OUTPUT"
 
         # 리뷰 역할을 쉼표 구분 문자열로
         ROLES=$(yq '.review.roles[]' "$CONFIG" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
@@ -68,5 +87,6 @@ runs:
 
         echo "issue-threshold=$(yq '.scoring.issue.threshold // 8' "$CONFIG")" >> "$GITHUB_OUTPUT"
         echo "review-threshold=$(yq '.scoring.review.threshold // 70' "$CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "require-approval=$(yq '.pipeline.require-approval // true' "$CONFIG")" >> "$GITHUB_OUTPUT"
 
-        echo "✅ pipeline.yml 파싱 완료"
+        echo "::notice::pipeline.yml 파싱 완료"

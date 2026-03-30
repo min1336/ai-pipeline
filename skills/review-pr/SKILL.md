@@ -92,9 +92,29 @@ pipeline.yml의 `scoring.review.verdicts`에 따라:
 - 50~69: `request-changes` → ⚠️ 수정 필요
 - 0~49: `block` → ❌ 주요 문제
 
+### 학습 기록 업데이트
+
+리뷰 완료 후, 점수가 70 미만이거나 block/request-changes 판정인 경우:
+
+1. `.github/ai-learnings.md` 파일 읽기
+2. 이번 리뷰에서 발견한 주요 문제가 기존 패턴과 겹치면 발견 횟수 증가
+3. 새로운 패턴이면 "리뷰 패턴" 섹션에 추가:
+
+```markdown
+- [2024-03-15] N+1 쿼리: UserService에서 루프 내 개별 쿼리 (발견 횟수: 1)
+```
+
+4. 변경사항 커밋:
+```bash
+git add .github/ai-learnings.md
+git commit -m "chore: AI 학습 기록 업데이트 — 리뷰 패턴 추가"
+git push
+```
+
 ## 중요 규칙
 
 - PR diff를 실제로 읽고 분석할 것 (요약만 보고 판단 금지)
 - 인라인 코멘트는 실제 문제에만 사용 (스타일 nitpick 금지)
 - 점수는 근거와 함께 제시할 것
 - PIPELINE 마커를 반드시 포함할 것
+- 학습 기록은 구체적으로 기록 ("보안 문제" X → "SQL injection: 사용자 입력이 쿼리에 직접 삽입" O)

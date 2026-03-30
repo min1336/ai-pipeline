@@ -15,8 +15,27 @@
 - `skills/` — Claude Code Skills (SKILL.md + 레퍼런스)
 - `actions/` — Composite Actions (재사용 단계)
 - `scripts/` — GitHub CLI 래퍼 스크립트
+- `templates/` — 소비자 레포에 복사할 파일
+- `docs/` — 레퍼런스 문서
+
+### 컨텍스트 전달 흐름
+```
+AGENTS.md (프로젝트 규칙)
+  + pipeline.yml (파이프라인 설정 + 도메인 컨텍스트)
+  + gather-context (동적: 최근 커밋, 관련 이슈)
+  → Reusable Workflow의 prompt에 주입
+  → Claude Code Action 실행
+```
+
+### 라벨 상태 머신
+```
+이슈 생성 → [stage/enriching] → [stage/enriched]
+  → [stage/ready] → [stage/approved] → [stage/implementing]
+  → PR 생성 → [stage/reviewed] → 머지
+```
 
 ## Boundaries
 - NEVER modify consuming repos' code directly
 - NEVER hardcode API keys or secrets
 - NEVER add external plugin dependencies
+- NEVER skip Human-in-the-loop (stage/approved) by default

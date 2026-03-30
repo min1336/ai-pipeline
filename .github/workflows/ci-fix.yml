@@ -26,14 +26,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: min1336/ai-pipeline/actions/load-skills@main
-      - uses: min1336/ai-pipeline/actions/parse-pipeline@main
+
+      - id: config
+        uses: min1336/ai-pipeline/actions/parse-pipeline@main
+
+      - id: ctx
+        uses: min1336/ai-pipeline/actions/gather-context@main
+
+      - name: 언어별 도구 결정
+        id: tools
+        shell: bash
+        run: |
+          LANG="${{ steps.config.outputs.language }}"
+          BASE="Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),mcp__github_ci__get_ci_status,mcp__github_ci__get_workflow_run_details,mcp__github_ci__download_job_log"
+          case "$LANG" in
+            python)  echo "allowed=${BASE},Bash(pip:*),Bash(python:*)" >> "$GITHUB_OUTPUT" ;;
+            go)      echo "allowed=${BASE},Bash(go:*)" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "allowed=${BASE},Bash(npm:*),Bash(npx:*)" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           track_progress: true
           prompt: |
+            ## 프로젝트 설정
+            - 언어: ${{ steps.config.outputs.language }}
+            - 테스트: `${{ steps.config.outputs.test-command }}`
+            - 린트: `${{ steps.config.outputs.lint-command }}`
+
+            ## 프로젝트 컨텍스트
+            ${{ steps.ctx.outputs.domain-context }}
+            ---
             /fix-ci ${{ inputs.run-id }}
           claude_args: |
             --max-turns ${{ inputs.max-turns }}
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm:*),Bash(npx:*),Bash(pip:*),Bash(git:*),Bash(gh pr:*),mcp__github_ci__get_ci_status,mcp__github_ci__get_workflow_run_details,mcp__github_ci__download_job_log"
+            --allowedTools "${{ steps.tools.outputs.allowed }}"

@@ -68,6 +68,20 @@ PR에 댓글:
 **시도:** {N}/{max}회
 ```
 
+### 7. 학습 기록 업데이트
+
+수정 완료 후 `.github/ai-learnings.md`의 "CI 실패 패턴" 섹션에 기록:
+
+```markdown
+- [날짜] 원인 카테고리: 구체적 설명 (발견 횟수: N)
+```
+
+```bash
+git add .github/ai-learnings.md
+git commit -m "chore: AI 학습 기록 업데이트 — CI 실패 패턴 추가"
+git push
+```
+
 ## 중요 규칙
 
 - 최대 시도 횟수를 반드시 지킬 것

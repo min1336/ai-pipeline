@@ -21,14 +21,51 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: min1336/ai-pipeline/actions/load-skills@main
-      - uses: min1336/ai-pipeline/actions/parse-pipeline@main
+
+      - id: config
+        uses: min1336/ai-pipeline/actions/parse-pipeline@main
+
+      - id: ctx
+        uses: min1336/ai-pipeline/actions/gather-context@main
+        with:
+          scope: issue
+          number: ${{ github.event.issue.number }}
+
+      - name: 언어별 도구 결정
+        id: tools
+        shell: bash
+        run: |
+          LANG="${{ steps.config.outputs.language }}"
+          BASE="Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(./scripts/edit-issue-labels.sh:*)"
+          case "$LANG" in
+            python)
+              echo "allowed=${BASE},Bash(pip:*),Bash(python:*)" >> "$GITHUB_OUTPUT"
+              ;;
+            go)
+              echo "allowed=${BASE},Bash(go:*)" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "allowed=${BASE},Bash(npm:*),Bash(npx:*)" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           track_progress: true
-          prompt: |
+          direct_prompt: |
+            ## 프로젝트 설정
+            - 이름: ${{ steps.config.outputs.project-name }}
+            - 언어: ${{ steps.config.outputs.language }}
+            - 설치: `${{ steps.config.outputs.install-command }}`
+            - 테스트: `${{ steps.config.outputs.test-command }}`
+            - 린트: `${{ steps.config.outputs.lint-command }}`
+
+            ## 프로젝트 컨텍스트
+            ${{ steps.ctx.outputs.domain-context }}
+            ${{ steps.ctx.outputs.project-context }}
+            ---
             /implement ${{ github.event.issue.number }}
           claude_args: |
             --max-turns ${{ inputs.max-turns }}
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm:*),Bash(npx:*),Bash(pip:*),Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(./scripts/edit-issue-labels.sh:*)"
+            --allowedTools "${{ steps.tools.outputs.allowed }}"

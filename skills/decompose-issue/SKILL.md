@@ -70,13 +70,31 @@ gh search issues --repo $REPO --state open "관련 키워드" --limit 5
 ### 테스트 계획
 - {어떤 테스트를 어떻게}
 
+### 완료 기준 (Sprint Contract)
+구현이 "완료"로 판정되려면 아래 모든 항목을 충족해야 합니다:
+- [ ] {검증 가능한 조건 1} (예: "GET /api/users 응답에 email 필드 포함")
+- [ ] {검증 가능한 조건 2} (예: "npm test 전체 통과")
+- [ ] {검증 가능한 조건 3} (예: "기존 API 응답 형식 변경 없음")
+
 ### 위험 요소
 - {잠재적 문제 + 대응 방안}
 
 <!-- PIPELINE:{"stage":"ready","plan":true} -->
 ```
 
-### 6. 라벨 업데이트
+### 6. 승인 안내 댓글
+
+구현 계획 댓글 끝에 다음 안내를 추가:
+
+```markdown
+---
+> **다음 단계:** 위 구현 계획을 확인한 후 `stage/approved` 라벨을 추가하면
+> 자동 구현이 시작됩니다.
+>
+> 수정이 필요하면 댓글로 피드백을 남겨주세요.
+```
+
+### 7. 라벨 업데이트
 
 ```bash
 ./scripts/edit-issue-labels.sh --issue $ARGUMENTS --add-label "stage/ready" --add-label "type/{type}" --add-label "priority/{priority}" --remove-label "stage/enriched"
@@ -88,3 +106,6 @@ gh search issues --repo $REPO --state open "관련 키워드" --limit 5
 - 변경 파일 테이블에 실제 존재하는 파일 경로를 사용할 것
 - 테스트 계획은 프로젝트의 기존 테스트 패턴을 따를 것
 - PIPELINE 마커를 반드시 포함할 것
+- 승인 안내를 반드시 포함할 것 (사람이 확인 후 진행하도록)
+- 완료 기준은 반드시 검증 가능한 형태로 작성 ("성능 개선" X → "응답 시간 200ms 이하" O)
+- 완료 기준은 최소 3개 이상 포함할 것

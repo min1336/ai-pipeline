@@ -1,0 +1,105 @@
+name: Gather Project Context
+description: 프로젝트 컨텍스트를 수집하여 Claude에게 전달할 요약 생성
+
+inputs:
+  scope:
+    description: "컨텍스트 범위 (issue, pr, maintenance)"
+    required: false
+    default: "issue"
+  number:
+    description: "이슈 또는 PR 번호"
+    required: false
+    default: ""
+
+outputs:
+  project-context:
+    description: Claude 프롬프트에 삽입할 프로젝트 컨텍스트
+    value: ${{ steps.gather.outputs.context }}
+  domain-context:
+    description: pipeline.yml의 context 섹션 내용
+    value: ${{ steps.domain.outputs.context }}
+
+runs:
+  using: composite
+  steps:
+    - name: 도메인 컨텍스트 추출
+      id: domain
+      shell: bash
+      run: |
+        CONFIG=".github/pipeline.yml"
+        CONTEXT=""
+
+        if [ -f "$CONFIG" ] && command -v yq &> /dev/null; then
+          ARCH=$(yq '.context.architecture // ""' "$CONFIG")
+          CONV=$(yq '.context.conventions // ""' "$CONFIG")
+          GLOSS=$(yq '.context.glossary // ""' "$CONFIG")
+          DESC=$(yq '.project.description // ""' "$CONFIG")
+
+          if [ -n "$DESC" ]; then
+            CONTEXT="### 프로젝트 설명\n$DESC\n\n"
+          fi
+          if [ -n "$ARCH" ]; then
+            CONTEXT="${CONTEXT}### 아키텍처\n$ARCH\n\n"
+          fi
+          if [ -n "$CONV" ]; then
+            CONTEXT="${CONTEXT}### 컨벤션\n$CONV\n\n"
+          fi
+          if [ -n "$GLOSS" ]; then
+            CONTEXT="${CONTEXT}### 도메인 용어\n$GLOSS\n\n"
+          fi
+        fi
+
+        # multiline output
+        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+        echo "context<<$EOF" >> "$GITHUB_OUTPUT"
+        echo -e "$CONTEXT" >> "$GITHUB_OUTPUT"
+        echo "$EOF" >> "$GITHUB_OUTPUT"
+
+    - name: 프로젝트 컨텍스트 수집
+      id: gather
+      shell: bash
+      run: |
+        SCOPE="${{ inputs.scope }}"
+        NUMBER="${{ inputs.number }}"
+        CONTEXT=""
+
+        # 최근 커밋 (모든 스코프에서 유용)
+        RECENT_COMMITS=$(git log --oneline -5 2>/dev/null || echo "커밋 없음")
+        CONTEXT="### 최근 커밋\n\`\`\`\n${RECENT_COMMITS}\n\`\`\`\n\n"
+
+        # 이슈 스코프: 관련 이슈/PR 패턴
+        if [ "$SCOPE" = "issue" ] && [ -n "$NUMBER" ]; then
+          # 같은 라벨의 최근 해결된 이슈 (패턴 학습용)
+          RESOLVED=$(gh search issues --repo "$GITHUB_REPOSITORY" --state closed \
+            --sort updated --limit 3 \
+            --json title,number --jq '.[] | "#\(.number) \(.title)"' 2>/dev/null || echo "없음")
+          CONTEXT="${CONTEXT}### 최근 해결된 이슈\n${RESOLVED}\n\n"
+        fi
+
+        # PR 스코프: 관련 이슈 정보
+        if [ "$SCOPE" = "pr" ] && [ -n "$NUMBER" ]; then
+          # PR에 연결된 이슈 찾기
+          PR_BODY=$(gh pr view "$NUMBER" --json body --jq '.body' 2>/dev/null || echo "")
+          LINKED_ISSUE=$(echo "$PR_BODY" | grep -oP '(?:Closes|Fixes|Resolves)\s+#(\d+)' | grep -oP '\d+' | head -1)
+          if [ -n "$LINKED_ISSUE" ]; then
+            ISSUE_PLAN=$(gh issue view "$LINKED_ISSUE" --json comments \
+              --jq '.comments[] | select(.body | contains("구현 계획")) | .body' 2>/dev/null | head -50)
+            if [ -n "$ISSUE_PLAN" ]; then
+              CONTEXT="${CONTEXT}### 연결된 이슈 #${LINKED_ISSUE}의 구현 계획\n${ISSUE_PLAN}\n\n"
+            fi
+          fi
+        fi
+
+        # maintenance 스코프
+        if [ "$SCOPE" = "maintenance" ]; then
+          OPEN_ISSUES=$(gh search issues --repo "$GITHUB_REPOSITORY" --state open \
+            --json number --jq 'length' 2>/dev/null || echo "?")
+          OPEN_PRS=$(gh pr list --state open --json number --jq 'length' 2>/dev/null || echo "?")
+          CONTEXT="${CONTEXT}### 현재 상태\n- 열린 이슈: ${OPEN_ISSUES}개\n- 열린 PR: ${OPEN_PRS}개\n\n"
+        fi
+
+        # multiline output
+        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+        echo "context<<$EOF" >> "$GITHUB_OUTPUT"
+        echo -e "$CONTEXT" >> "$GITHUB_OUTPUT"
+        echo "$EOF" >> "$GITHUB_OUTPUT"

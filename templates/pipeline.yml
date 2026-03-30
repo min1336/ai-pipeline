@@ -1,0 +1,111 @@
+# ============================================================================
+# AI Pipeline 설정
+# 이 파일을 프로젝트 레포의 .github/pipeline.yml에 복사한 후 수정하세요.
+#
+# 모든 값에 기본값이 있으므로, 변경이 필요한 항목만 작성해도 됩니다.
+# ============================================================================
+
+# ── 프로젝트 기본 정보 ──
+project:
+  name: my-project
+  language: typescript        # typescript | python | go | java | rust
+  description: >-
+    프로젝트에 대한 한 줄 설명.
+    AI가 이슈를 분석하고 코드를 작성할 때 이 설명을 참고합니다.
+
+# ── 빌드/테스트 명령어 ──
+# AI가 구현 후 검증할 때 사용하는 명령어
+build:
+  install: npm install        # 의존성 설치
+  test: npm test              # 테스트 실행
+  lint: npm run lint          # 린트 실행
+  type-check: npx tsc --noEmit  # 타입 체크 (해당 시)
+  build: npm run build        # 빌드 (해당 시)
+
+# ── 리뷰 설정 ──
+review:
+  # 활성화할 리뷰 관점
+  roles:
+    - security       # OWASP Top 10, 입력 검증, 비밀값 노출
+    - qa             # 테스트 커버리지, 엣지 케이스, 회귀
+    - reviewer       # 코드 패턴, 컨벤션, 복잡도, 성능
+
+# ── 점수 임계값 ──
+scoring:
+  issue:
+    threshold: 8             # 이슈 품질 점수 (10점 만점, 미달 시 추가 정보 요청)
+  review:
+    threshold: 70            # PR 리뷰 통과 점수 (100점 만점)
+    weights:                 # 리뷰 점수 배분
+      security: 25
+      testing: 25
+      quality: 20
+      performance: 15
+      documentation: 15
+    verdicts:                # 점수대별 판정
+      auto-approve: 90       # 90~100: 자동 승인
+      approve: 70            # 70~89: 승인 권장
+      request-changes: 50    # 50~69: 수정 필요
+      block: 0               # 0~49: 차단
+
+# ── 자동 라벨링 ──
+labels:
+  auto-rules:
+    - pattern: "버그|오류|에러|bug|error|crash"
+      label: type/bug
+    - pattern: "기능|feature|추가"
+      label: type/feature
+    - pattern: "개선|enhance|improve|refactor"
+      label: type/enhancement
+    - pattern: "문서|docs|README"
+      label: type/docs
+
+# ── 안전장치 ──
+safety:
+  max-ci-fix-attempts: 2     # CI 자동 수정 최대 시도 횟수
+  max-pr-fix-attempts: 2     # PR 피드백 반영 최대 시도 횟수
+  stale-days: 30             # 이슈 비활동 경고 일수
+  close-days: 60             # 이슈 자동 닫기 일수
+  protected-labels:          # 자동 닫기 면제 라벨
+    - priority/critical
+    - priority/high
+    - pinned
+
+# ── 파이프라인 동작 ──
+pipeline:
+  # true: stage/ready 후 사람이 stage/approved를 달아야 구현 시작
+  # false: stage/ready가 붙으면 바로 구현 시작 (위험)
+  require-approval: true
+
+  # 각 단계의 Claude 최대 대화 턴 수
+  max-turns:
+    enrich: 15
+    decompose: 20
+    implement: 50
+    review: 20
+    fix-ci: 15
+    fix-pr: 20
+    maintenance: 15
+
+# ── 도메인 컨텍스트 ──
+# AI가 코드를 이해하고 작성하는 데 도움이 되는 프로젝트 고유 정보
+context:
+  # 핵심 디렉토리 구조 설명
+  architecture: |
+    src/
+      api/       — REST API 라우트
+      services/  — 비즈니스 로직
+      models/    — 데이터 모델
+      utils/     — 유틸리티
+
+  # 코딩 컨벤션 (AGENTS.md와 함께 AI에게 전달됨)
+  conventions: |
+    - 에러 핸들링: Result<T, E> 패턴 사용
+    - 네이밍: camelCase (함수/변수), PascalCase (타입/클래스)
+    - 테스트: 같은 디렉토리에 *.test.ts
+
+  # 알아야 할 도메인 용어
+  glossary: |
+    - Workspace: 팀 단위 격리 공간
+    - Member: Workspace에 속한 사용자
+    - Pipeline: 자동화 처리 흐름
