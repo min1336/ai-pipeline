@@ -2,11 +2,6 @@ name: Issue Enrich
 
 on:
   workflow_call:
-    inputs:
-      max-turns:
-        type: number
-        default: 15
-        description: Claude 최대 대화 턴 수
     secrets:
       CLAUDE_OAUTH_TOKEN:
         required: true
@@ -19,39 +14,5 @@ jobs:
       issues: write
       id-token: write
     steps:
-      - name: 프로젝트 레포 checkout
-        uses: actions/checkout@v4
-
-      - name: 스킬 로드
-        uses: min1336/ai-pipeline/actions/load-skills@main
-
-      - name: pipeline.yml 파싱
-        id: config
-        uses: min1336/ai-pipeline/actions/parse-pipeline@main
-
-      - name: 프로젝트 컨텍스트 수집
-        id: ctx
-        uses: min1336/ai-pipeline/actions/gather-context@main
-        with:
-          scope: issue
-          number: ${{ github.event.issue.number }}
-
-      - name: 이슈 구체화 실행
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-          track_progress: true
-          prompt: |
-            ## 프로젝트 설정
-            - 이름: ${{ steps.config.outputs.project-name }}
-            - 언어: ${{ steps.config.outputs.language }}
-            - 이슈 품질 임계값: ${{ steps.config.outputs.issue-threshold }}/10
-
-            ## 프로젝트 컨텍스트
-            ${{ steps.ctx.outputs.domain-context }}
-            ${{ steps.ctx.outputs.project-context }}
-            ---
-            /enrich-issue ${{ github.event.issue.number }}
-          claude_args: |
-            --max-turns ${{ inputs.max-turns }}
-            --allowedTools "Read,Glob,Grep,Bash(gh issue:*),Bash(gh search:*),Bash(./scripts/edit-issue-labels.sh:*)"
+      - uses: actions/checkout@v4
+      - run: echo "Enrich triggered for issue event"
